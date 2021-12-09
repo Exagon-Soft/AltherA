@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier:MIT
 pragma solidity >=0.4.22 <0.9.0;
 
-interface BEP20 {
+interface IBEP20 {
 
   function totalSupply() external view returns (uint256);
 
@@ -64,6 +64,10 @@ interface BEP20 {
   event Transfer(address indexed from, address indexed to, uint256 value);
 
   event Burn(address indexed from, address indexed to, uint256 value);
+
+  event DeflectIn(address indexed from, address indexed to, uint256 value);
+
+  event DeflectOut(address indexed from, address indexed to, uint256 value);
 
   /**
    * @dev Emitted when the allowance of a `spender` for an `owner` is set by
@@ -218,7 +222,7 @@ library SafeMath {
 
 abstract contract Context {
   function _msgSender() internal view virtual returns (address) {
-      return msg.sender;
+      return address(msg.sender);
   }
 
   function _msgData() internal view virtual returns (bytes memory) {
@@ -455,206 +459,378 @@ contract Ownable is Context {
 
 // pragma solidity >=0.6.2;
 
-contract Zorking is Context, BEP20, Ownable {
+contract AltherA is Context, IBEP20, Ownable {
+    
+    //Libraries to Use
     using SafeMath for uint256;
     using Address for address;
-
-    mapping (address => uint256) private _Owned;
+ 
+    //Properties
+    mapping (address => uint256) private _balances;
     mapping (address => mapping (address => uint256)) private _allowances;
+    address[] private _holders;
 
-    mapping (address => bool) private _isExcludedFromFee;
+    //Declaring owner, lock and inversors accounts
+    address private _comunityAccount = msg.sender;
+    address private _lockAccount = address(0x277216c4c4dD57e76C4EA6e38a3E9bd4610A57D6);
+    address private _inv1 = address(0x3DB0AC34451F66637e2f4769F084a2e869d32fd2);
+    address private _inv2 = address(0x10144493821E3Bb495d7C8BCCc2510770038350F);
+    address private _inv3 = address(0x7c7f35f7d409ecb54a21A097D4c88dc2695e8733);
+  
+    uint256 private _totalSupply;
+    uint256 private _comunitySupply;
+    uint256 private _altheraSupply;
+    uint256 private _inversorSupply;
+    uint8 private _decimals;
+    string private _symbol;
+    string private _name;
 
-    mapping (address => bool) private _isExcluded;
-    address[] private _excluded;
-   
-    uint256 private constant MAX = ~uint256(0);
-    uint256 private _supplyTotal = 2000000000000 * 10 ** 5;
-    uint256 private _comunityTotal = (_supplyTotal / 2);
-    uint256 private _lockTotal = (_supplyTotal / 2) - 60000000 * 10 **5;
-    uint256 private _invTotal = 20000000 * 10 **5;
-    uint256 private _tFeeTotal;
-
-    address private _altheraAccount = address(0x4dDFBd49e987D25B64B0979C6Ce85910aE59Fb1B);
-    address private _inv1 = address(0xBe1E40C5D0788FB4Ea102D0d49F2Bbae51D1969f);
-    address private _inv2 = address(0x4cBD85661e56759959b67955b3507bec8BE6C267);
-    address private _inv3 = address(0xacBFB194C30c2ee00dE2919868E1A9b169518ecd);
-
-    string private _name = "Zorking";
-    string private _symbol = "ZKG";
-    uint8 private _decimals = 5;
-    
+    //Fees declaration
     uint256 public _burnFee = 1;
-    uint256 private _previousburnFee = _burnFee;
-    
-    uint256 public _reflectFee = 1;
-    uint256 private _previousreflectiveFee = _reflectFee;
+    uint256 private _previousBurnFee = _burnFee;
 
-    uint256 public _maxTxAmount = 999940000000 * 10 ** 5;
-    
-    constructor () {
-        _Owned[_msgSender()] = _comunityTotal;
-        _Owned[_altheraAccount] = _lockTotal;
-        _Owned[_inv1] = _invTotal;
-        _Owned[_inv2] = _invTotal;
-        _Owned[_inv3] = _invTotal;
-        
-        emit Transfer(address(0), _msgSender(), _comunityTotal);
-        emit Transfer(address(0), _altheraAccount, _lockTotal);
-        emit Transfer(address(0), _inv1, _invTotal);
-        emit Transfer(address(0), _inv2, _invTotal);
-        emit Transfer(address(0), _inv3, _invTotal);
+    uint256 public _deflectionFee = 1;
+    uint256 private _previousDeflectionFee = _deflectionFee;
+  
+    constructor(){
+      _name = "AltherA";
+      _symbol = "HOA";
+      _decimals = 5;
+      _totalSupply = 2000000000000 * 10 ** 5;
+      _comunitySupply = _totalSupply / 2;
+      _altheraSupply = (_totalSupply / 2) - 60000000 * 10 **5;
+      _inversorSupply = 20000000 * 10 **5;
+
+      _balances[_comunityAccount] = _comunitySupply;
+      _balances[_lockAccount] = _altheraSupply;
+      _balances[_inv1] = _inversorSupply;
+      _balances[_inv2] = _inversorSupply;
+      _balances[_inv3] = _inversorSupply;
+
+      _holders.push(_inv1);
+      _holders.push(_inv2);
+      _holders.push(_inv3);
+
+  
+      emit Transfer(address(0), _comunityAccount, _comunitySupply);
+      emit Transfer(address(0), _lockAccount, _altheraSupply);
+      emit Transfer(address(0), _inv1, _inversorSupply);
+      emit Transfer(address(0), _inv2, _inversorSupply);
+      emit Transfer(address(0), _inv3, _inversorSupply);
+    }
+  
+    /**
+     * @dev Returns the bep token owner.
+     */
+    function getOwner() external view returns (address) {
+      return owner();
+    }
+  
+    /**
+     * @dev Returns the token decimals.
+     */
+    function decimals() external view returns (uint8) {
+      return _decimals;
+    }
+  
+    /**
+     * @dev Returns the token symbol.
+     */
+    function symbol() external view returns (string memory) {
+      return _symbol;
+    }
+  
+    /**
+    * @dev Returns the token name.
+    */
+    function name() external view returns (string memory) {
+      return _name;
+    }
+  
+    /**
+     * @dev See {BEP20-totalSupply}.
+     */
+    function totalSupply() external view returns (uint256) {
+      return _totalSupply;
+    }
+  
+    /**
+     * @dev See {BEP20-balanceOf}.
+     */
+    function balanceOf(address account) external view returns (uint256) {
+      return _balances[account];
+    }
+  
+    /**
+     * @dev See {BEP20-transfer}.
+     *
+     * Requirements:
+     *
+     * - `recipient` cannot be the zero address.
+     * - the caller must have a balance of at least `amount`.
+     */
+    function transfer(address recipient, uint256 amount) external returns (bool) {
+      _transfer(_msgSender(), recipient, amount);
+      return true;
+    }
+  
+    /**
+     * @dev See {BEP20-allowance}.
+     */
+    function allowance(address owner, address spender) external view returns (uint256) {
+      return _allowances[owner][spender];
+    }
+  
+    /**
+     * @dev See {BEP20-approve}.
+     *
+     * Requirements:
+     *
+     * - `spender` cannot be the zero address.
+     */
+    function approve(address spender, uint256 amount) external returns (bool) {
+      _approve(_msgSender(), spender, amount);
+      return true;
+    }
+  
+    /**
+     * @dev See {BEP20-transferFrom}.
+     *
+     * Emits an {Approval} event indicating the updated allowance. This is not
+     * required by the EIP. See the note at the beginning of {BEP20};
+     *
+     * Requirements:
+     * - `sender` and `recipient` cannot be the zero address.
+     * - `sender` must have a balance of at least `amount`.
+     * - the caller must have allowance for `sender`'s tokens of at least
+     * `amount`.
+     */
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool) {
+      _transfer(sender, recipient, amount);
+      _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "BEP20: transfer amount exceeds allowance"));
+      return true;
+    }
+  
+    /**
+     * @dev Atomically increases the allowance granted to `spender` by the caller.
+     *
+     * This is an alternative to {approve} that can be used as a mitigation for
+     * problems described in {BEP20-approve}.
+     *
+     * Emits an {Approval} event indicating the updated allowance.
+     *
+     * Requirements:
+     *
+     * - `spender` cannot be the zero address.
+     */
+    function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
+      _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+      return true;
+    }
+  
+    /**
+     * @dev Atomically decreases the allowance granted to `spender` by the caller.
+     *
+     * This is an alternative to {approve} that can be used as a mitigation for
+     * problems described in {BEP20-approve}.
+     *
+     * Emits an {Approval} event indicating the updated allowance.
+     *
+     * Requirements:
+     *
+     * - `spender` cannot be the zero address.
+     * - `spender` must have allowance for the caller of at least
+     * `subtractedValue`.
+     */
+    function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
+      _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "BEP20: decreased allowance below zero"));
+      return true;
     }
 
-    function name() public view returns (string memory) {
-        return _name;
+    function removeBurnFee() private {
+      if(_burnFee == 0) return;
+      
+      _previousBurnFee = _burnFee;
+      
+      _burnFee = 0;
     }
 
-    function symbol() public view returns (string memory) {
-        return _symbol;
+    function restoreBurnFee() private {
+      _burnFee = _previousBurnFee;
     }
 
-    function decimals() public view returns (uint8) {
-        return _decimals;
-    }
-
-    function totalSupply() public view override returns (uint256) {
-        return _supplyTotal;
-    }
-
-    function balanceOf(address account) public view override returns (uint256) {
-        return _Owned[account];
-    }
-
-    function transfer(address recipient, uint256 amount) public override returns (bool) {
-        _transfer(_msgSender(), recipient, amount);
-        return true;
-    }
-
-    function allowance(address owner, address spender) public view override returns (uint256) {
-        return _allowances[owner][spender];
-    }
-
-    function approve(address spender, uint256 amount) public override returns (bool) {
-        _approve(_msgSender(), spender, amount);
-        return true;
-    }
-
-    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
-        _transfer(sender, recipient, amount);
-        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "BEP20: transfer amount exceeds allowance"));
-        return true;
-    }
-
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
-        return true;
-    }
-
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "BEP20: decreased allowance below zero"));
-        return true;
-    }
-
-    function defburn(uint256 amount) internal {
-        require(amount > 0, "BEP20: burn some thing");
-    
-        _Owned[_altheraAccount] = _Owned[_altheraAccount].sub(amount, "BEP20: burn amount exceeds balance");
-        _supplyTotal = _supplyTotal.sub(amount);
-        emit Burn(_altheraAccount, address(0), amount);
-      }
-
-    
-      function totalFees() public view returns (uint256) {
-        return _tFeeTotal;
-    }
-
-    function setBurnFeePercent(uint256 burnFee) external onlyOwner() {
-        _burnFee = burnFee;
-    }
-
-    function setReflectFeePercent(uint256 reflectFee) external onlyOwner() {
-        _reflectFee = reflectFee;
-    }
-    
-     //to recieve ETH from uniswapV2Router when swaping
-    receive() external payable {}
-
-    function DoreflectFee(uint256 reflectFee) private {
-        _Owned[_altheraAccount] = _comunityTotal.sub(reflectFee);
-        _tFeeTotal = _tFeeTotal.add(reflectFee);
-    }
-
-    function _getValues(uint256 tAmount) private view returns (uint256, uint256) {
-        (uint256 ToburnFee, uint256 ToreflectFee) = _getTValues(tAmount);
-        return (ToburnFee, ToreflectFee);
-    }
-
-    function _getTValues(uint256 tAmount) private view returns (uint256, uint256) {
-        uint256 burnFee = calculateBurnFee(tAmount);
-        uint256 reflectFee = calculateReflectFee(tAmount);
-        return (burnFee, reflectFee);
-    }
-
-    
     function calculateBurnFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_burnFee).div(
-            10**2
-        );
+      return _amount.mul(_burnFee).div(
+          10**2
+      );
     }
 
-    function calculateReflectFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_reflectFee).div(
-            10**2
-        );
+    /**
+     * @dev Chqnges `burn Fee` aplied to transactions
+     *
+     * Requirements
+     *
+     * - `msg.sender` must be the token owner
+     */
+    function ChangeBurnFee(uint256 newFee) public onlyOwner returns (bool) {
+       _previousBurnFee = _burnFee;
+       _burnFee = newFee;
+        return true;
     }
 
-    function _approve(address owner, address spender, uint256 amount) private {
-        require(owner != address(0), "BEP20: approve from the zero address");
-        require(spender != address(0), "BEP20: approve to the zero address");
-
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+    function removeDeflectFee() private {
+      if(_deflectionFee == 0) return;
+      
+      _previousDeflectionFee = _deflectionFee;
+      
+      _deflectionFee = 0;
+    }
+  
+    function restoreDeflectFee() private {
+      _deflectionFee = _previousDeflectionFee;
     }
 
-    function _transfer(
-        address from,
-        address to,
-        uint256 amount
-    ) private {
-        require(from != address(0), "BEP20: transfer from the zero address");
-        require(to != address(0), "BEP20: transfer to the zero address");
-        require(amount > 0, "Transfer amount must be greater than zero");
-        if(from != owner() && to != owner())
-            require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
+    function calculateDefelctFee(uint256 _amount) private view returns (uint256) {
+      return _amount.mul(_deflectionFee).div(
+          10**2
+      );
+    }
 
-        // is the token balance of this contract address over the min number of
-        // tokens that we need to initiate a swap + liquidity lock?
-        // also, don't get caught in a circular liquidity event.
-        // also, don't swap & liquify if sender is uniswap pair.
-        uint256 contractTokenBalance = balanceOf(address(this));
-        
-        if(contractTokenBalance >= _maxTxAmount)
-        {
-            contractTokenBalance = _maxTxAmount;
+    /**
+     * @dev Chqnges `Deflection Fee` aplied to transactions
+     *
+     * Requirements
+     *
+     * - `msg.sender` must be the token owner
+     */
+    function ChangeDeflectFee(uint256 newFee) public onlyOwner returns (bool) {
+      _previousDeflectionFee = _deflectionFee;
+      _deflectionFee = newFee;
+       return true;
+    }
+
+    /**
+     * @dev Moves tokens `amount` from `sender` to `recipient`.
+     *
+     * This is internal function is equivalent to {transfer}, and can be used to
+     * e.g. implement automatic token fees, slashing mechanisms, etc.
+     *
+     * Emits a {Transfer} event.
+     *
+     * Requirements:
+     *
+     * - `sender` cannot be the zero address.
+     * - `recipient` cannot be the zero address.
+     * - `sender` must have a balance of at least `amount`.
+     */
+    function _transfer(address sender, address recipient, uint256 amount) internal {
+      require(sender != address(0), "BEP20: transfer from the zero address");
+      require(recipient != address(0), "BEP20: transfer to the zero address");
+  
+      _balances[sender] = _balances[sender].sub(amount, "BEP20: transfer amount exceeds balance");
+      _balances[recipient] = _balances[recipient].add(amount);
+      
+      emit Transfer(sender, recipient, amount);
+      _enlistAccount(recipient);
+      if(_balances[_lockAccount] > 100000000){
+        uint256 _totalBurning = calculateBurnFee(amount) + calculateDefelctFee(amount);
+        _defburn(_totalBurning);
+        _deflex(calculateDefelctFee(amount));
+      }
+      
+    }
+
+    function _enlistAccount (address toEnlist) private{
+      bool isEnlisted = false;
+
+      if(_holders.length > 0){
+        for(uint256 icounter = 0; icounter < _holders.length; icounter++){
+          if(toEnlist == _holders[icounter]){
+           isEnlisted = true;
+           break;
+          }
+       }
+       if(! isEnlisted && toEnlist != _lockAccount && toEnlist != _comunityAccount)
+          _holders.push(toEnlist); 
+      }
+      
+    }
+  
+  
+    /**
+     * @dev Destroys `amount` tokens from `account`, reducing the
+     * total supply.
+     *
+     * Emits a {Transfer} event with `to` set to the zero address.
+     *
+     * Requirements
+     *
+     * - `account` cannot be the zero address.
+     * - `account` must have at least `amount` tokens.
+     */
+    function _burn(address account, uint256 amount) internal {
+      require(account != address(0), "BEP20: burn from the zero address");
+  
+      _balances[account] = _balances[account].sub(amount, "BEP20: burn amount exceeds balance");
+      _totalSupply = _totalSupply.sub(amount);
+      emit Transfer(account, address(0), amount);
+    }
+  
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the `owner`s tokens.
+     *
+     * This is internal function is equivalent to `approve`, and can be used to
+     * e.g. set automatic allowances for certain subsystems, etc.
+     *
+     * Emits an {Approval} event.
+     *
+     * Requirements:
+     *
+     * - `owner` cannot be the zero address.
+     * - `spender` cannot be the zero address.
+     */
+    function _approve(address owner, address spender, uint256 amount) internal {
+      require(owner != address(0), "BEP20: approve from the zero address");
+      require(spender != address(0), "BEP20: approve to the zero address");
+  
+      _allowances[owner][spender] = amount;
+      emit Approval(owner, spender, amount);
+    }
+  
+    /**
+     * @dev Destroys `amount` tokens from `account`.`amount` is then deducted
+     * from the caller's allowance.
+     *
+     * See {_burn} and {_approve}.
+     */
+    function _burnFrom(address account, uint256 amount) internal {
+      _burn(account, amount);
+      _approve(account, _msgSender(), _allowances[account][_msgSender()].sub(amount, "BEP20: burn amount exceeds allowance"));
+    }
+
+    /**
+     * @dev Destroy tokens from the lockAccount width every transaction
+     */
+    function _defburn(uint256 amount) internal {
+      require(amount > 0, "BEP20: burn some thing");
+  
+      _balances[_lockAccount] = _balances[_lockAccount].sub(amount, "BEP20: burn amount exceeds balance");
+      _totalSupply = _totalSupply.sub(amount);
+      emit Burn(_lockAccount, address(0), amount);
+    }
+
+    /**
+     * Deflect tokens from the lockAccount width every transaction
+     * among token holders
+     */
+    function _deflex(uint256 amount) internal{
+      if(_holders.length > 0){
+        uint256 _deflectAmount = amount / _holders.length;
+        for(uint256 icounter = 0; icounter < _holders.length; icounter++){
+          _balances[_holders[icounter]] = _balances[_holders[icounter]].add(_deflectAmount);
+          emit DeflectOut(address(0), _holders[icounter], _deflectAmount);
         }
-        
-        //transfer amount, it will take tax, burn, liquidity fee
-        _tokenTransfer(from,to,amount);
+      }
+      
     }
-
-    //this method is responsible for taking all fee, if takeFee is true
-    function _tokenTransfer(address sender, address recipient, uint256 amount) private {
-        
-        _transferStandard(sender, recipient, amount);
-    }
-
-    function _transferStandard(address sender, address recipient, uint256 Amount) private {
-        (uint256 toBurn, uint256 toReflect) = _getValues(Amount);
-        _Owned[sender] = _Owned[sender].sub(Amount);
-        _Owned[recipient] = _Owned[recipient].add(Amount);
-        DoreflectFee(toReflect);
-        defburn(toBurn);
-        emit Transfer(sender, recipient, Amount);
-    }
-
 }

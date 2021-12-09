@@ -1,5 +1,5 @@
-var Zorking = artifacts.require("./Zorking.sol");
+var Althera = artifacts.require("./AltherA.sol");
 
 module.exports = function(deployer) {
-  deployer.deploy(Zorking);
+  deployer.deploy(Althera);
 };
