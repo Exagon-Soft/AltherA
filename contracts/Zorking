@@ -459,7 +459,7 @@ contract Ownable is Context {
 
 // pragma solidity >=0.6.2;
 
-contract AltherA is Context, IBEP20, Ownable {
+contract Zorking is Context, IBEP20, Ownable {
     
     //Libraries to Use
     using SafeMath for uint256;
@@ -470,12 +470,11 @@ contract AltherA is Context, IBEP20, Ownable {
     mapping (address => mapping (address => uint256)) private _allowances;
     address[] private _holders;
 
-    //Declaring owner, lock and inversors accounts
-    address private _comunityAccount = msg.sender;
-    address private _lockAccount = address(0x277216c4c4dD57e76C4EA6e38a3E9bd4610A57D6);
-    address private _inv1 = address(0x3DB0AC34451F66637e2f4769F084a2e869d32fd2);
-    address private _inv2 = address(0x10144493821E3Bb495d7C8BCCc2510770038350F);
-    address private _inv3 = address(0x7c7f35f7d409ecb54a21A097D4c88dc2695e8733);
+    address private _comunityAccount = address(0x5E0B838471b4867f3d9A94a3B1D9FdBd222cd253);
+    address private _lockAccount = address(0x27d5f103a05a6a8206d07E0343C1fCda7313ACf0);
+    address private _inv1 = address(0x3Db37b16381cFB3Ef1Dd691802302e682Eb09FF1);
+    address private _inv2 = address(0x1Fd2606d66cCFdE212a0C5FBD51392258E3124CF);
+    address private _inv3 = address(0x7c10E8548B844617a95Ac9DCC7fA76001DcfbAb7);
   
     uint256 private _totalSupply;
     uint256 private _comunitySupply;
@@ -493,8 +492,8 @@ contract AltherA is Context, IBEP20, Ownable {
     uint256 private _previousDeflectionFee = _deflectionFee;
   
     constructor(){
-      _name = "AltherA";
-      _symbol = "HOA";
+      _name = "Zorking";
+      _symbol = "ZKG";
       _decimals = 5;
       _totalSupply = 2000000000000 * 10 ** 5;
       _comunitySupply = _totalSupply / 2;
